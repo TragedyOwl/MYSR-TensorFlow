@@ -50,6 +50,12 @@ def downsample_fn(img):
     return result
 
 """
+啥都不做，保持队形用
+"""
+def return_fn(img):
+    return img
+
+"""
 对验证集数据进行下采样
 """
 def downsample_fn2(img):

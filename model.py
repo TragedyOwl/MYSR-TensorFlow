@@ -32,7 +32,9 @@ class MYSR(object):
         # self.input = x = tf.placeholder(tf.float32, [None, self.imgsize, self.imgsize, self.output_channels])
         self.input = x = tf.placeholder(tf.float32, [None, None, None, self.output_channels])
         # Placeholder for upscaled image ground-truth
-        self.target = y = tf.placeholder(tf.float32, [None, self.imgsize*self.scale, self.imgsize*self.scale, self.output_channels])
+        # self.target = y = tf.placeholder(tf.float32, [None, self.imgsize*self.scale, self.imgsize*self.scale, self.output_channels])
+        self.target = y = tf.placeholder(tf.float32, [None, None, None, self.output_channels])
+
 
         # 验证集Placeholder
         self.valid_input = []
@@ -119,9 +121,9 @@ class MYSR(object):
 
         # TODO: 添加验证集测试
         # 验证集，不裁剪，整体下采样
-        # valid_hr_img_list = sorted(
-        #     tl.files.load_file_list(path=config.VALID.hr_img_path, regx='.*.png', printable=False))
-        # valid_hr_imgs = tl.vis.read_images(valid_hr_img_list, path=config.VALID.hr_img_path, n_threads=32)
+        valid_hr_img_list = sorted(
+            tl.files.load_file_list(path=config.VALID.hr_img_path, regx='.*.png', printable=False))
+        valid_hr_imgs = tl.vis.read_images(valid_hr_img_list, path=config.VALID.hr_img_path, n_threads=32)
         print("Done loading!")
 
         ## 初始化模型训练参数
@@ -148,25 +150,24 @@ class MYSR(object):
 
             # TODO: 验证集预处理，由于输入为整张图片，所以从处理到输入都不同
             # 验证集数据预处理
-            # b_valid_hr_imgs = valid_hr_imgs
-            # b_valid_lr_imgs = tl.prepro.threading_data(valid_hr_imgs, fn=utils.downsample_fn2)
-            # 为验证集数据单独创建Place_holder
-            # for i in range(len(b_valid_hr_imgs)):
-            #     self.valid_input.append(tf.placeholder(tf.float32, [1, b_valid_lr_imgs[i].shape[0], b_valid_lr_imgs[i].shape[1], self.output_channels]))
-            #     self.valid_target.append(tf.placeholder(tf.float32, [1, b_valid_hr_imgs[i].shape[0], b_valid_hr_imgs[i].shape[1], self.output_channels]))
+            b_valid_hr_imgs = tl.prepro.threading_data(valid_hr_imgs, fn=utils.return_fn)
+            b_valid_lr_imgs = tl.prepro.threading_data(b_valid_hr_imgs, fn=utils.downsample_fn2)
 
-
-            # TODO: 开始训练
+            # 开始训练
             for epoch in range(0, self.epoch + 1):
                 epoch_time = time.time()
                 # TODO: 可以添加对学习率的处理
 
                 for idx in tqdm(range(0, math.ceil(len(train_hr_imgs)/self.batch_size))):
-                    step_tim = time.time()
                     # 加载随机处理后的HR, LR数据
                     b_train_hr_imgs_crop = tl.prepro.threading_data(train_hr_imgs[idx*self.batch_size:idx*self.batch_size + self.batch_size], fn=utils.crop_sub_imgs_fn,
                                                           is_random=True)
                     b_train_lr_imgs_crop = tl.prepro.threading_data(b_train_hr_imgs_crop, fn=utils.downsample_fn)
+
+                    # TODO: 验证集测试
+                    # break
+                    # if idx == 1:
+                    #     break
 
                     # run
                     feed = {
@@ -187,10 +188,17 @@ class MYSR(object):
                     self.saver.save(self.sess, self.save_model_dir, global_step=epoch)
 
                 # TODO: 每n个epoch运行一下验证集
-                if epoch % 10 == 0:
-                    # 每张测试集图片都需要单独过模型
-                    # 创建place_holder
-                    pass
+                if epoch % 100 == 0:
+                    # run
+                    test_feed = {
+                        self.input: [b_valid_lr_imgs[0]],
+                        self.target: [b_valid_hr_imgs[0]]
+                    }
+                    t_summary = sess.run(merged, test_feed)
+
+                    # 记录到tensorboard
+                    valid_writer.add_summary(t_summary, epoch)
+
 
     def save(self):
         print("Saving...")
