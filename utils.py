@@ -142,3 +142,16 @@ def log10(x):
   numerator = tf.log(x)
   denominator = tf.log(tf.constant(10, dtype=numerator.dtype))
   return numerator / denominator
+
+"""
+特别版：以tf.depth_to_space(X, r)为核心对wh进行重组，实现上采样。。。
+"""
+def upsample2(x, scale=2, activation=tf.nn.relu):
+    # x[?, w, h, c]中的c会减少scale的2次方倍用于将输入扩展为
+    # x[?, w*scale, h*scale, c/(scale**2)]
+    x = tf.depth_to_space(x, scale)
+
+    # 是否要再接卷积层还原再说。。。
+
+
+
