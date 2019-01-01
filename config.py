@@ -5,8 +5,8 @@ config = edict()
 config.TRAIN = edict()
 
 ## data
-config.TRAIN.imgsize = 100  # 训练时基础输入图像大小
-config.TRAIN.scale = 2  # 放大倍数
+config.TRAIN.imgsize = 96  # 训练时基础输入图像大小
+config.TRAIN.scale = 4  # 放大倍数
 config.TRAIN.output_channels = 3    # 通道数
 
 ## Adam
@@ -28,6 +28,7 @@ config.TRAIN.decay_every = int(config.TRAIN.n_epoch / 2)
 # config.TRAIN.hr_img_path = 'data/DIV2K/DIV2K_train_HR/'
 # config.TRAIN.lr_img_path = 'data/DIV2K/DIV2K_train_LR_bicubic/X4/'
 config.TRAIN.hr_img_path = 'data/benchmark/Urban100/Urban100_train_HR'
+# config.TRAIN.hr_img_path = 'data/DIV2K/DIV2K_train_HR'
 
 config.VALID = edict()
 ## test set location
@@ -40,9 +41,9 @@ config.TEST = edict()
 config.TEST.sr_img_path = 'data/test/test_sr/'
 
 ## save model
-config.TRAIN.save_model_dir = 'save/model'
-config.TRAIN.save_tensorboard_train_dir = 'save/tensorboard/train'
-config.TRAIN.save_tensorboard_valid_dir = 'save/tensorboard/valid'
+config.TRAIN.save_model_dir = 'save/'
+config.TRAIN.save_tensorboard_train_dir = 'save/tensorboard/train/'
+config.TRAIN.save_tensorboard_valid_dir = 'save/tensorboard/valid/'
 
 def log_config(filename, cfg):
     with open(filename, 'w') as f:

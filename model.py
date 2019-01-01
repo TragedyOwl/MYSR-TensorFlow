@@ -21,6 +21,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"	# 这里指定GPU0
 class MYSR(object):
     def __init__(self):
         print("Building MYSR...")
+        self.is_continued = False
         self.imgsize = config.TRAIN.imgsize
         self.output_channels = config.TRAIN.output_channels
         self.scale = config.TRAIN.scale
@@ -119,7 +120,6 @@ class MYSR(object):
             tl.files.load_file_list(path=config.TRAIN.hr_img_path, regx='.*.png', printable=False))
         train_hr_imgs = tl.vis.read_images(train_hr_img_list, path=config.TRAIN.hr_img_path, n_threads=32)
 
-        # TODO: 添加验证集测试
         # 验证集，不裁剪，整体下采样
         valid_hr_img_list = sorted(
             tl.files.load_file_list(path=config.VALID.hr_img_path, regx='.*.png', printable=False))
@@ -142,13 +142,18 @@ class MYSR(object):
         with self.sess as sess, tf.device('/gpu:0'):
             # Initialize all variables
             sess.run(init)
+            # 恢复模型
+            if self.is_continued:
+                print("Restoring...")
+                self.saver.restore(self.sess, tf.train.latest_checkpoint(self.save_model_dir))
+                print("Restored!")
+
             # 训练集专用TB writer
             train_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_train_dir, sess.graph)
 
             # 验证集专用TB writer
             valid_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_valid_dir, sess.graph)
 
-            # TODO: 验证集预处理，由于输入为整张图片，所以从处理到输入都不同
             # 验证集数据预处理
             b_valid_hr_imgs = tl.prepro.threading_data(valid_hr_imgs, fn=utils.return_fn)
             b_valid_lr_imgs = tl.prepro.threading_data(b_valid_hr_imgs, fn=utils.downsample_fn2)
@@ -199,16 +204,16 @@ class MYSR(object):
                     # 记录到tensorboard
                     valid_writer.add_summary(t_summary, epoch)
 
-
     def save(self):
         print("Saving...")
         self.saver.save(self.sess, self.save_model_dir)
         print("Saved!")
 
     def resume(self):
-        print("Restoring...")
-        self.saver.restore(self.sess, tf.train.latest_checkpoint(self.save_model_dir))
-        print("Restored!")
+        # print("Restoring...")
+        # self.saver.restore(self.sess, tf.train.latest_checkpoint(self.save_model_dir))
+        self.is_continued = True
+        # print("Restored!")
 
 
 
