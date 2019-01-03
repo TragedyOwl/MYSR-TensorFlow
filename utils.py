@@ -50,6 +50,15 @@ def downsample_fn(img):
     return result
 
 """
+对输入图像进行bicubic上采样
+"""
+def lr2bicubic_fn(img):
+    scale = config.TRAIN.scale
+    result = imresize(img, size=[img.shape[0] * scale, img.shape[1] * scale], interp='bicubic', mode=None)
+
+    return result
+
+"""
 啥都不做，保持队形用
 """
 def return_fn(img):
@@ -92,6 +101,19 @@ def resBlock(x, channels=64, kernel_size=[3, 3], scale=1):
     tmp = slim.conv2d(x, channels, kernel_size, activation_fn=None)
     tmp = tf.nn.relu(tmp)
     tmp = slim.conv2d(tmp, channels, kernel_size, activation_fn=None)
+    tmp *= scale
+    return x + tmp
+
+"""
+Dense块
+"""
+def denseBlock(x, channels=64, kernel_size=[3, 3], scale=1, n_block=1):
+    # 入口
+    tmp = x = slim.conv2d(x, channels, [1, 1], activation_fn=None)
+
+    for i in range(n_block):
+        tmp = resBlock(tmp, channels, kernel_size=kernel_size, scale=scale)
+
     tmp *= scale
     return x + tmp
 
