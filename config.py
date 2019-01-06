@@ -38,12 +38,14 @@ config.VALID.hr_img_path = 'data/test/test_valid/'
 
 config.TEST = edict()
 ## test set location
+config.TEST.hr_img_path = 'data/test/test_hr/'
 config.TEST.sr_img_path = 'data/test/test_sr/'
 
 ## save model
 config.TRAIN.save_model_dir = 'save/'
 config.TRAIN.save_tensorboard_train_dir = 'save/tensorboard/train/'
 config.TRAIN.save_tensorboard_valid_dir = 'save/tensorboard/valid/'
+config.TRAIN.save_tensorboard_test_dir = 'save/tensorboard/test/'
 
 def log_config(filename, cfg):
     with open(filename, 'w') as f:

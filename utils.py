@@ -59,10 +59,15 @@ def lr2bicubic_fn(img):
     return result
 
 """
-啥都不做，保持队形用
+修整齐大小尺寸
 """
 def return_fn(img):
-    return img
+    scale = config.TRAIN.scale
+    x = img.shape[0] // scale * scale
+    y = img.shape[1] // scale * scale
+    result = imresize(img, size=[x, y], interp='bicubic', mode=None)
+
+    return result
 
 """
 对验证集数据进行下采样

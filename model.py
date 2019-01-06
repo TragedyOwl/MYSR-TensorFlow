@@ -28,6 +28,8 @@ class MYSR(object):
         self.epoch = config.TRAIN.n_epoch
         self.batch_size = config.TRAIN.batch_size
         self.save_model_dir = config.TRAIN.save_model_dir
+        self.test_input = config.TEST.hr_img_path
+        self.test_output = config.TEST.sr_img_path
 
         # Placeholder for image inputs
         # self.input = x = tf.placeholder(tf.float32, [None, self.imgsize, self.imgsize, self.output_channels])
@@ -53,13 +55,20 @@ class MYSR(object):
         # One convolution before res blocks and to convert to required feature depth
         x = image_input
 
+        # TODO: model v4.3
         scaling_factor = 0.1
-        x = utils.denseBlock(x, 32, scale=scaling_factor, n_block=4)
-        x = utils.denseBlock(x, 64, scale=scaling_factor, n_block=4)
-        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=4)
-        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=4)
+        x = utils.denseBlock(x, 32, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 64, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 64, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
+        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
 
-        # TODO:试试新的上采样
+        # TODO: shuffle型上采样
         x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3], activation_fn=tf.nn.tanh)
         x = tf.depth_to_space(x, self.scale)
 
@@ -79,7 +88,7 @@ class MYSR(object):
         # Using equations from here: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
         mse = tf.reduce_mean(tf.squared_difference((image_target+1)*(255. / 2.), tf.clip_by_value((output+1)*(255. / 2.), 0.0, 255.0)))
         PSNR = tf.constant(255**2, dtype=tf.float32) / mse
-        PSNR = tf.constant(10, dtype=tf.float32) * utils.log10(PSNR)
+        self.PSNR = PSNR = tf.constant(10, dtype=tf.float32) * utils.log10(PSNR)
 
         # Scalar to keep track for loss
         tf.summary.scalar("loss", self.loss)
@@ -95,6 +104,67 @@ class MYSR(object):
         self.sess = tf.Session(config=config_tf)
         self.saver = tf.train.Saver()
         print("Done building!")
+
+    def evaluate(self):
+        print("Begin loading data...")
+        test_hr_img_list = sorted(
+            tl.files.load_file_list(path=config.TEST.hr_img_path, regx='.*.png', printable=False))
+        test_hr_imgs = tl.vis.read_images(test_hr_img_list, path=config.TEST.hr_img_path, n_threads=32)
+        print("Done loading!")
+
+        ## 初始化模型训练参数
+        # Just a tf thing, to merge all summaries into one
+        merged = tf.summary.merge_all()
+        # Using adam optimizer as mentioned in the paper
+        optimizer = tf.train.AdamOptimizer()
+        # This is the train operation for our objective
+        train_op = optimizer.minimize(self.loss)
+        # Operation to initialize all variables
+        # init = tf.global_variables_initializer()   # 已过时
+        init = tf.initializers.global_variables()
+
+        # GPU
+        with self.sess as sess, tf.device('/gpu:0'):
+            # Initialize all variables
+            sess.run(init)
+            # 恢复模型
+            print("Restoring...")
+            self.saver.restore(self.sess, tf.train.latest_checkpoint(self.save_model_dir))
+            print("Restored!")
+
+            # 测试集集专用TB writer
+            test_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_test_dir, sess.graph)
+
+            # 验证集数据预处理
+            b_test_hr_imgs = tl.prepro.threading_data(test_hr_imgs, fn=utils.return_fn)
+            b_test_lr_imgs = tl.prepro.threading_data(b_test_hr_imgs, fn=utils.downsample_fn2)
+            b_test_bicubic_imgs = tl.prepro.threading_data(b_test_lr_imgs, fn=utils.lr2bicubic_fn)
+
+            # PSNR值
+            ll_PSNR = []
+            ss = 0.0
+            for idx in tqdm(range(0, len(b_test_lr_imgs))):
+                # run
+                test_feed = {
+                    self.input: [b_test_lr_imgs[idx]],
+                    self.input_bicubic: [b_test_bicubic_imgs[idx]],
+                    self.target: [b_test_hr_imgs[idx]]
+                }
+                t_summary, out, PSNR = sess.run([merged, self.out, self.PSNR], test_feed)
+                # t_summary = sess.run(merged, test_feed)
+
+                # 记录到tensorboard
+                test_writer.add_summary(t_summary, idx)
+
+                # 保存sr图像
+                ll_PSNR.append(test_hr_img_list[idx] + "-" + PSNR.astype('str'))
+                ss += PSNR
+                scipy.misc.imsave(self.test_output + test_hr_img_list[idx], out[0])
+
+            ll_PSNR.append("sum: " + (ss/len(b_test_lr_imgs)).astype('str'))
+            print(ll_PSNR)
+
+
 
     def train(self):
         ###====================== PRE-LOAD DATA ===========================###
