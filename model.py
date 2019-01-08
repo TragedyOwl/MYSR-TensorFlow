@@ -10,6 +10,7 @@ import os
 from config import config
 import time
 import math
+import modellib
 
 # 解决Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -48,36 +49,8 @@ class MYSR(object):
         image_input_bicubic = self.input_bicubic / (255. / 2.)
         image_input_bicubic -= 1
 
-
-        # 貌似即使收缩至[-1, 1]区间，卷积层依旧可以有效适应，只是注意最后一层不能使用relu，b毕竟relu值域在[0, x]
-        # ENCODER
-        # 入口
-        # One convolution before res blocks and to convert to required feature depth
-        x = image_input
-
-        # TODO: model v4.3
-        scaling_factor = 0.1
-        x = utils.denseBlock(x, 32, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 64, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 64, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 128, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
-        x = utils.denseBlock(x, 256, scale=scaling_factor, n_block=2)
-
-        # TODO: shuffle型上采样
-        x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3], activation_fn=tf.nn.tanh)
-        x = tf.depth_to_space(x, self.scale)
-
-
-        # bicubic图像连接
-        x += image_input_bicubic
-
-        # One final convolution on the upsampling output
-        output = x
+        # 加载模型
+        output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
 
         # 结果 注意预处理的值
         # self.out = tf.clip_by_value(output+(255. / 2.), 0.0, 255.0)
@@ -161,7 +134,7 @@ class MYSR(object):
                 ss += PSNR
                 scipy.misc.imsave(self.test_output + test_hr_img_list[idx], out[0])
 
-            ll_PSNR.append("sum: " + (ss/len(b_test_lr_imgs)).astype('str'))
+            ll_PSNR.append("AVG: " + (ss/len(b_test_lr_imgs)).astype('str'))
             print(ll_PSNR)
 
 
