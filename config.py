@@ -6,7 +6,7 @@ config.TRAIN = edict()
 
 ## data
 config.TRAIN.imgsize = 96  # 训练时基础输入图像大小
-config.TRAIN.scale = 4  # 放大倍数
+config.TRAIN.scale = 2  # 放大倍数
 config.TRAIN.output_channels = 3    # 通道数
 
 ## Adam
@@ -42,8 +42,11 @@ config.TEST.hr_img_path = 'data/test/test_hr/'
 config.TEST.sr_img_path = 'data/test/test_sr/'
 
 ## save model
+config.TRAIN.save_epoch = 1000
 config.TRAIN.save_model_dir = 'save/'
+config.TRAIN.save_tensorboard_train_epoch = 1
 config.TRAIN.save_tensorboard_train_dir = 'save/tensorboard/train/'
+config.TRAIN.save_tensorboard_valid_epoch = 10
 config.TRAIN.save_tensorboard_valid_dir = 'save/tensorboard/valid/'
 config.TRAIN.save_tensorboard_test_dir = 'save/tensorboard/test/'
 

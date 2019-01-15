@@ -4,7 +4,7 @@ network = MYSR()
 
 # network.resume()
 
-# network.train()
+network.train()
 
-network.evaluate()
+# network.evaluate()
 

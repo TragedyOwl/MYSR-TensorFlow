@@ -11,12 +11,13 @@ from config import config
 import time
 import math
 import modellib
+import random
 
 # 解决Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Tensorflow GPU显存占满，而Util为0
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"	# 这里指定GPU0
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"	# 这里指定GPU0
 
 
 class MYSR(object):
@@ -50,7 +51,9 @@ class MYSR(object):
         image_input_bicubic -= 1
 
         # 加载模型
-        output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
+        output = modellib.MYSR_v5(self, image_input)
+        # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
+        # output = modellib.EDSR_v1(self, image_input)
 
         # 结果 注意预处理的值
         # self.out = tf.clip_by_value(output+(255. / 2.), 0.0, 255.0)
@@ -137,8 +140,6 @@ class MYSR(object):
             ll_PSNR.append("AVG: " + (ss/len(b_test_lr_imgs)).astype('str'))
             print(ll_PSNR)
 
-
-
     def train(self):
         ###====================== PRE-LOAD DATA ===========================###
         print("Begin loading data...")
@@ -198,12 +199,6 @@ class MYSR(object):
                     b_train_lr_imgs_crop = tl.prepro.threading_data(b_train_hr_imgs_crop, fn=utils.downsample_fn)
                     b_train_bicubic_imgs_crop = tl.prepro.threading_data(b_train_lr_imgs_crop, fn=utils.lr2bicubic_fn)
 
-
-                    # TODO: 验证集测试
-                    # break
-                    # if idx == 1:
-                    #     break
-
                     # run
                     feed = {
                         self.input: b_train_lr_imgs_crop,
@@ -213,7 +208,8 @@ class MYSR(object):
                     summary, _ = sess.run([merged, train_op], feed)
 
                     # 记录到tensorboard
-                    train_writer.add_summary(summary, epoch*self.batch_size + idx)
+                    if 1 == random.randint(0, 99):   # 随机一下
+                        train_writer.add_summary(summary, epoch*self.batch_size + idx)
 
                 step_time = time.time()
                 print("Epoch [%2d/%2d] %4d time: %4.4fs" % (
