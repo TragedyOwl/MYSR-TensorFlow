@@ -4,6 +4,7 @@ from tensorlayer.prepro import *
 from config import config
 import os
 import scipy.misc
+import datetime
 import numpy as np
 
 
@@ -187,4 +188,11 @@ def upsample2(x, scale=2, activation=tf.nn.relu):
     # 是否要再接卷积层还原再说。。。
 
 
-
+"""
+写loss, PSNR日志
+"""
+def log_message(ff="./log/test.log", mm="a", message=""):
+    with open(ff, mm) as f:
+        message = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ": " + message
+        message += "\n"
+        f.write(message)

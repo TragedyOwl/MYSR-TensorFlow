@@ -50,6 +50,11 @@ config.TRAIN.save_tensorboard_valid_epoch = 10
 config.TRAIN.save_tensorboard_valid_dir = 'save/tensorboard/valid/'
 config.TRAIN.save_tensorboard_test_dir = 'save/tensorboard/test/'
 
+## log path
+config.VALID.log_file = './log/valid.log'
+config.TEST.log_file = './log/test.log'
+
+
 def log_config(filename, cfg):
     with open(filename, 'w') as f:
         f.write("================================================\n")

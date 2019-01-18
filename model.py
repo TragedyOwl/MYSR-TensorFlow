@@ -17,7 +17,7 @@ import random
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Tensorflow GPU显存占满，而Util为0
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"	# 这里指定GPU0
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"        # 这里指定GPU0
 
 
 class MYSR(object):
@@ -32,6 +32,10 @@ class MYSR(object):
         self.save_model_dir = config.TRAIN.save_model_dir
         self.test_input = config.TEST.hr_img_path
         self.test_output = config.TEST.sr_img_path
+
+        # 初始化log文件
+        utils.log_message(config.VALID.log_file, "w+", "START")
+        utils.log_message(config.TEST.log_file, "w+", "START")
 
         # Placeholder for image inputs
         # self.input = x = tf.placeholder(tf.float32, [None, self.imgsize, self.imgsize, self.output_channels])
@@ -50,8 +54,9 @@ class MYSR(object):
         image_input_bicubic = self.input_bicubic / (255. / 2.)
         image_input_bicubic -= 1
 
-        # 加载模型
-        output = modellib.MYSR_v5(self, image_input)
+        # TODO:加载模型
+        # output = modellib.MYSR_v5_1(self, image_input, image_input_bicubic, 64, 16)
+        output = modellib.MYSR_v5(self, image_input, 64, 16)
         # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
         # output = modellib.EDSR_v1(self, image_input)
 
@@ -152,6 +157,11 @@ class MYSR(object):
         valid_hr_img_list = sorted(
             tl.files.load_file_list(path=config.VALID.hr_img_path, regx='.*.png', printable=False))
         valid_hr_imgs = tl.vis.read_images(valid_hr_img_list, path=config.VALID.hr_img_path, n_threads=32)
+
+        # 测试集，不裁剪，整体下采样
+        test_hr_img_list = sorted(
+            tl.files.load_file_list(path=config.TEST.hr_img_path, regx='.*.png', printable=False))
+        test_hr_imgs = tl.vis.read_images(test_hr_img_list, path=config.TEST.hr_img_path, n_threads=32)
         print("Done loading!")
 
         ## 初始化模型训练参数
@@ -180,12 +190,17 @@ class MYSR(object):
             train_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_train_dir, sess.graph)
 
             # 验证集专用TB writer
-            valid_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_valid_dir, sess.graph)
+            # valid_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_valid_dir, sess.graph)
 
             # 验证集数据预处理
             b_valid_hr_imgs = tl.prepro.threading_data(valid_hr_imgs, fn=utils.return_fn)
             b_valid_lr_imgs = tl.prepro.threading_data(b_valid_hr_imgs, fn=utils.downsample_fn2)
             b_valid_bicubic_imgs = tl.prepro.threading_data(b_valid_lr_imgs, fn=utils.lr2bicubic_fn)
+
+            # 测试集数据预处理
+            b_test_hr_imgs = tl.prepro.threading_data(test_hr_imgs, fn=utils.return_fn)
+            b_test_lr_imgs = tl.prepro.threading_data(b_test_hr_imgs, fn=utils.downsample_fn2)
+            b_test_bicubic_imgs = tl.prepro.threading_data(b_test_lr_imgs, fn=utils.lr2bicubic_fn)
 
             # 开始训练
             for epoch in range(0, self.epoch + 1):
@@ -208,7 +223,7 @@ class MYSR(object):
                     summary, _ = sess.run([merged, train_op], feed)
 
                     # 记录到tensorboard
-                    if 1 == random.randint(0, 99):   # 随机一下
+                    if 1 == idx % 99:   # 随机一下
                         train_writer.add_summary(summary, epoch*self.batch_size + idx)
 
                 step_time = time.time()
@@ -216,21 +231,44 @@ class MYSR(object):
                 epoch, self.epoch, self.epoch,  step_time - epoch_time))
 
                 # TODO: 每n个epoch保存一次模型
-                if epoch % 1000 == 0 and epoch != 0:
+                if epoch % 100 == 0 and epoch != 0:
                     self.saver.save(self.sess, self.save_model_dir, global_step=epoch)
 
                 # TODO: 每n个epoch运行一下验证集
+                if epoch % 10 == 0:
+                    # run
+                    PSNR_sum = 0.0
+                    for i in range(len(b_valid_lr_imgs)):
+                        test_feed = {
+                            self.input: [b_valid_lr_imgs[i]],
+                            self.input_bicubic: [b_valid_bicubic_imgs[i]],
+                            self.target: [b_valid_hr_imgs[i]]
+                        }
+                        out, PSNR = sess.run([self.out, self.PSNR], test_feed)
+                        PSNR_sum += PSNR
+                    PSNR_avg = PSNR_sum/len(b_valid_lr_imgs)
+
+                utils.log_message(config.VALID.log_file, "a", str(PSNR_avg))
+
+                # TODO: 每n个epoch运行一下测试集
                 if epoch % 100 == 0:
                     # run
-                    test_feed = {
-                        self.input: [b_valid_lr_imgs[0]],
-                        self.input_bicubic: [b_valid_bicubic_imgs[0]],
-                        self.target: [b_valid_hr_imgs[0]]
-                    }
-                    t_summary = sess.run(merged, test_feed)
+                    PSNR_sum = 0.0
+                    for i in range(len(b_test_lr_imgs)):
+                        test_feed = {
+                            self.input: [b_test_lr_imgs[i]],
+                            self.input_bicubic: [b_test_bicubic_imgs[i]],
+                            self.target: [b_test_hr_imgs[i]]
+                        }
+                        out, PSNR = sess.run([self.out, self.PSNR], test_feed)
+                        PSNR_sum += PSNR
+                    PSNR_avg = PSNR_sum / len(b_test_lr_imgs)
+
+                    utils.log_message(config.TEST.log_file, "a", str(PSNR_avg))
+
 
                     # 记录到tensorboard
-                    valid_writer.add_summary(t_summary, epoch)
+                    # valid_writer.add_summary(t_summary, epoch)
 
     def save(self):
         print("Saving...")

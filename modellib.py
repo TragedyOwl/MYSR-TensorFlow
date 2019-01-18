@@ -60,7 +60,7 @@ def MYSR_v4(self, image_input, image_input_bicubic):
     return output
 
 
-def MYSR_v5(self, image_input):
+def MYSR_v5(self, image_input, num_channels, num_block):
     # 定制residual_block
     def _residual_block(x, num_channels):
         skip = x
@@ -87,12 +87,57 @@ def MYSR_v5(self, image_input):
     sk = x
 
     # input
-    x = Conv2DWN.conv2d_weight_norm(image_input, 256, 3, padding='same')   #入口
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
 
     # layer
-    for i in range(16):
+    for i in range(num_block):
         with tf.variable_scope('layer{}'.format(i)):
-            x = _residual_block(x, 32)
+            x = _residual_block(x, num_channels)
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # output
+    x += sk
+
+    return x
+
+
+def MYSR_v5_1(self, image_input, image_input_bicubic, num_channels, num_block):
+    # 定制residual_block
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        x = tf.concat([x, skip], 3)     # 扩大n_fea
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # skip connect
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+    sk = x
+
+    # input
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
+
+    # layer
+    for i in range(num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            x = _residual_block(x, num_channels)
 
     # SR
     x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
