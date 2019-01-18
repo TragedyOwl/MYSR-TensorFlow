@@ -248,7 +248,7 @@ class MYSR(object):
                         PSNR_sum += PSNR
                     PSNR_avg = PSNR_sum/len(b_valid_lr_imgs)
 
-                utils.log_message(config.VALID.log_file, "a", str(PSNR_avg))
+                    utils.log_message(config.VALID.log_file, "a", str(PSNR_avg))
 
                 # TODO: 每n个epoch运行一下测试集
                 if epoch % 100 == 0:
