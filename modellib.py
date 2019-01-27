@@ -104,6 +104,51 @@ def MYSR_v5(self, image_input, num_channels, num_block):
     return x
 
 
+# 去掉整体跳跃层的卷积结构，改为bicubic
+def MYSR_v5_b(self, image_input, image_input_bicubic, num_channels, num_block):
+    # 定制residual_block
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels * 4,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # skip connect
+    # x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    # x = tf.depth_to_space(x, self.scale)
+    sk = image_input_bicubic
+
+    # input
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
+
+    # layer
+    for i in range(num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            x = _residual_block(x, num_channels)
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # output
+    x += sk
+
+    return x
+
+
 def MYSR_v5_1(self, image_input, image_input_bicubic, num_channels, num_block):
     # 定制residual_block
     def _residual_block(x, num_channels):
@@ -149,3 +194,253 @@ def MYSR_v5_1(self, image_input, image_input_bicubic, num_channels, num_block):
     return x
 
 
+# 去掉Relu前增加n_fea结构
+def MYSR_v5_0(self, image_input, image_input_bicubic, num_channels, num_block):
+    # 定制residual_block
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        # x = tf.concat([x, skip], 3)     # 扩大n_fea
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # skip connect
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+    sk = x
+
+    # input
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
+
+    # layer
+    for i in range(num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            x = _residual_block(x, num_channels)
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # output
+    x += sk
+
+    return x
+
+
+# 去掉整体跳跃层的卷积结构，改为bicubic
+def MYSR_v5_0_b(self, image_input, image_input_bicubic, num_channels, num_block):
+    # 定制residual_block
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        # x = tf.concat([x, skip], 3)     # 扩大n_fea
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # skip connect
+    sk = image_input_bicubic
+
+    # input
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
+
+    # layer
+    for i in range(num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            x = _residual_block(x, num_channels)
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # output
+    x += sk
+
+    return x
+
+
+# Relu前增加n_fea为3倍，输入为x-2, x-1, x
+def MYSR_v5_3(self, image_input, image_input_bicubic, num_channels, num_block):
+    # TODO: 增加多层扩大结构
+    # 定制residual_block
+    # input x
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        x = tf.concat([x, skip], 3)     # 扩大n_fea
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # 定制residual_block
+    # input x x-1
+    def _residual_block1(x, x1, num_channels):
+        skip = x
+        skip1 = x1
+        x = Conv2DWN.conv2d_weight_norm(
+            x,
+            num_channels,
+            3,
+            padding='same',
+            name='conv0',
+        )
+
+        x = tf.concat([x, skip], 3)  # 扩大n_fea x2
+        x = tf.concat([x, skip1], 3)  # 扩大n_fea x3
+
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+            x,
+            num_channels,
+            3,
+            padding='same',
+            name='conv1',
+        )
+        return x + skip
+
+    # 定制residual_block
+    # input x x-1 x-2
+    def _residual_block2(x, x1, x2, num_channels):
+        skip = x
+        skip1 = x1
+        skip2 = x2
+        x = Conv2DWN.conv2d_weight_norm(
+            x,
+            num_channels,
+            3,
+            padding='same',
+            name='conv0',
+        )
+
+        x = tf.concat([x, skip], 3)  # 扩大n_fea x2
+        x = tf.concat([x, skip1], 3)  # 扩大n_fea x3
+        x = tf.concat([x, skip2], 3)  # 扩大n_fea x4
+
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+            x,
+            num_channels,
+            3,
+            padding='same',
+            name='conv1',
+        )
+        return x + skip
+
+    # skip connect
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+    sk = x
+
+    # input
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
+
+    # x2
+    with tf.variable_scope('layer0'):
+        x = x2 = _residual_block(x, num_channels)
+
+    # x3
+    with tf.variable_scope('layer1'):
+        x = x1 = _residual_block1(x, x2, num_channels)
+
+    # layer x4
+    for i in range(2, num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            tmp = _residual_block2(x, x1, x2, num_channels)
+
+        # x->x1 x1->x2
+        x2 = x1
+        x1 = x
+        x = tmp
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # output
+    x += sk
+
+    return x
+
+
+# 将模型划分为特征提取与特征整合两部分
+def MYSR_v6(self, image_input, num_channels, num_block):
+    # 定制residual_block
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        # x = tf.concat([x, skip], 3)     # 扩大n_fea
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # 入口层
+    x = sk = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')  # 入口
+
+    # 特征提取
+    # layer
+    for i in range(num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            x = _residual_block(x, num_channels)
+            sk = tf.concat([sk, x], 3)  # 收集各层特征提取结果
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # 特征整合
+    sk = Conv2DWN.conv2d_weight_norm(sk, self.output_channels * self.scale * self.scale, 5, padding='same')
+    sk = tf.depth_to_space(sk, self.scale)
+
+    # output
+    x += sk
+
+    return x

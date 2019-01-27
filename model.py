@@ -55,8 +55,12 @@ class MYSR(object):
         image_input_bicubic -= 1
 
         # TODO:加载模型
+        # output = modellib.MYSR_v5_3(self, image_input, image_input_bicubic, 64, 16)
+        # output = modellib.MYSR_v5_0(self, image_input, image_input_bicubic, 64, 16)
+        # output = modellib.MYSR_v5_0_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_1(self, image_input, image_input_bicubic, 64, 16)
-        output = modellib.MYSR_v5(self, image_input, 64, 16)
+        # output = modellib.MYSR_v5(self, image_input, 64, 16)
+        output = modellib.MYSR_v5_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
         # output = modellib.EDSR_v1(self, image_input)
 
@@ -248,7 +252,8 @@ class MYSR(object):
                         PSNR_sum += PSNR
                     PSNR_avg = PSNR_sum/len(b_valid_lr_imgs)
 
-                    utils.log_message(config.VALID.log_file, "a", str(PSNR_avg))
+                    m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) + ']: ' + str(PSNR_avg)
+                    utils.log_message(config.VALID.log_file, "a", m_temp)
 
                 # TODO: 每n个epoch运行一下测试集
                 if epoch % 100 == 0:
@@ -264,7 +269,8 @@ class MYSR(object):
                         PSNR_sum += PSNR
                     PSNR_avg = PSNR_sum / len(b_test_lr_imgs)
 
-                    utils.log_message(config.TEST.log_file, "a", str(PSNR_avg))
+                    m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) + ']: ' + str(PSNR_avg)
+                    utils.log_message(config.TEST.log_file, "a", m_temp)
 
 
                     # 记录到tensorboard
