@@ -55,14 +55,18 @@ class MYSR(object):
         image_input_bicubic -= 1
 
         # TODO:加载模型
+        # output = modellib.MYSR_v6(self, image_input, 64, 16)
+        # output = modellib.MYSR_v5_Dense1(self, image_input, 64, 4, 16)
+        # output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
         # output = modellib.MYSR_v5_3(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_1(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5(self, image_input, 64, 16)
-        output = modellib.MYSR_v5_b(self, image_input, image_input_bicubic, 64, 16)
+        # output = modellib.MYSR_v5_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
-        # output = modellib.EDSR_v1(self, image_input)
+        output = modellib.EDSR_v1(self, image_input, 256, 16)
+        # output = modellib.EDSR_v1_b(self, image_input, 256, 16)
 
         # 结果 注意预处理的值
         # self.out = tf.clip_by_value(output+(255. / 2.), 0.0, 255.0)
