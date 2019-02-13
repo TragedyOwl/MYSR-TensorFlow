@@ -13,6 +13,8 @@ config.TRAIN.output_channels = 3    # 通道数
 config.TRAIN.batch_size = 16
 config.TRAIN.lr_init = 1e-4
 config.TRAIN.beta1 = 0.9
+config.TRAIN.beta2 = 0.999
+config.TRAIN.epsilon = 1e-08
 
 ## initialize G
 config.TRAIN.n_epoch_init = 100

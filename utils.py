@@ -196,3 +196,19 @@ def log_message(ff="./log/test.log", mm="a", message=""):
         message = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ": " + message
         message += "\n"
         f.write(message)
+
+
+"""
+监测梯度爆炸现象
+"""
+def monitorGradientExplosion(monitor_dir, image_i, image_o, image_t):
+    # 创建目录
+    os.makedirs(monitor_dir + 'image_i/')
+    os.makedirs(monitor_dir + 'image_o/')
+    os.makedirs(monitor_dir + 'image_t/')
+
+    # 存图片
+    for idx in range(len(image_i)):
+        scipy.misc.imsave(monitor_dir + 'image_i/' + str(idx) + '.png', image_i[idx])
+        scipy.misc.imsave(monitor_dir + 'image_o/' + str(idx) + '.png', image_o[idx])
+        scipy.misc.imsave(monitor_dir + 'image_t/' + str(idx) + '.png', image_t[idx])

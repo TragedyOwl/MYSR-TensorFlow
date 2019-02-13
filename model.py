@@ -65,8 +65,8 @@ class MYSR(object):
         # output = modellib.MYSR_v5(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
-        output = modellib.EDSR_v1(self, image_input, 256, 16)
-        # output = modellib.EDSR_v1_b(self, image_input, 256, 16)
+        # output = modellib.EDSR_v1(self, image_input, 128, 16)
+        output = modellib.EDSR_v1_b(self, image_input, 128, 16)
 
         # 结果 注意预处理的值
         # self.out = tf.clip_by_value(output+(255. / 2.), 0.0, 255.0)
@@ -176,7 +176,10 @@ class MYSR(object):
         # Just a tf thing, to merge all summaries into one
         merged = tf.summary.merge_all()
         # Using adam optimizer as mentioned in the paper
-        optimizer = tf.train.AdamOptimizer()
+        optimizer = tf.train.AdamOptimizer(learning_rate=config.TRAIN.lr_init,
+                                           beta1=config.TRAIN.beta1,
+                                           beta2=config.TRAIN.beta2,
+                                           epsilon=config.TRAIN.epsilon)
         # This is the train operation for our objective
         train_op = optimizer.minimize(self.loss)
         # Operation to initialize all variables
@@ -215,6 +218,13 @@ class MYSR(object):
                 epoch_time = time.time()
                 # TODO: 可以添加对学习率的处理
 
+                loss_last = 0   # 上一个时间点的loss值
+                monitor_dir = './'
+                monitor_dir_last = './'
+                b_train_lr_imgs_crop_last = None
+                out_last = None
+                b_train_hr_imgs_crop_last = None
+
                 for idx in tqdm(range(0, math.ceil(len(train_hr_imgs)/self.batch_size))):
                     # 加载随机处理后的HR, LR数据
                     b_train_hr_imgs_crop = tl.prepro.threading_data(train_hr_imgs[idx*self.batch_size:idx*self.batch_size + self.batch_size], fn=utils.crop_sub_imgs_fn,
@@ -228,7 +238,34 @@ class MYSR(object):
                         self.input_bicubic: b_train_bicubic_imgs_crop,
                         self.target: b_train_hr_imgs_crop
                     }
-                    summary, _ = sess.run([merged, train_op], feed)
+                    summary, _, loss, out = sess.run([merged, train_op, self.loss, self.out], feed)
+
+                    # TODO: 监测梯度爆炸现象
+                    if 0 != loss_last and loss > loss_last * 10:
+                        # 保存当前状态
+                        monitor_dir = './data/monitor/' + str(epoch) + '_' + str(idx) + '/'
+                        self.saver.save(self.sess, monitor_dir, global_step=epoch)
+
+                        # 存储图片
+                        # 当前爆炸点
+                        utils.monitorGradientExplosion(monitor_dir, b_train_lr_imgs_crop, out, b_train_hr_imgs_crop)
+                        # 之前爆炸点
+                        utils.monitorGradientExplosion(monitor_dir_last, b_train_lr_imgs_crop_last, out_last, b_train_hr_imgs_crop_last)
+
+
+                        # 异常信息记录
+                        m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) + ']: ' \
+                                 + 'cur=' + str(loss) + ', pre' + str(loss_last)
+                        utils.log_message(monitor_dir + 'log.txt', "a", m_temp)
+
+                    # 前点信息赋值
+                    loss_last = loss
+                    monitor_dir_last = monitor_dir
+                    b_train_lr_imgs_crop_last = b_train_lr_imgs_crop
+                    out_last = out
+                    b_train_hr_imgs_crop_last = b_train_hr_imgs_crop
+
+
 
                     # 记录到tensorboard
                     if 1 == idx % 99:   # 随机一下
@@ -252,7 +289,7 @@ class MYSR(object):
                             self.input_bicubic: [b_valid_bicubic_imgs[i]],
                             self.target: [b_valid_hr_imgs[i]]
                         }
-                        out, PSNR = sess.run([self.out, self.PSNR], test_feed)
+                        PSNR = sess.run(self.PSNR, test_feed)
                         PSNR_sum += PSNR
                     PSNR_avg = PSNR_sum/len(b_valid_lr_imgs)
 
@@ -269,7 +306,7 @@ class MYSR(object):
                             self.input_bicubic: [b_test_bicubic_imgs[i]],
                             self.target: [b_test_hr_imgs[i]]
                         }
-                        out, PSNR = sess.run([self.out, self.PSNR], test_feed)
+                        PSNR = sess.run(self.PSNR, test_feed)
                         PSNR_sum += PSNR
                     PSNR_avg = PSNR_sum / len(b_test_lr_imgs)
 

@@ -25,7 +25,7 @@ def EDSR_v1(self, image_input, num_channels, num_block):
     # x = utils.upsample(x, self.scale, 256, None)
 
     # TODO:试试新的上采样
-    x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3])
+    x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3], activation_fn=tf.nn.tanh)
     x = tf.depth_to_space(x, self.scale)
 
     # One final convolution on the upsampling output
@@ -59,7 +59,7 @@ def EDSR_v1_b(self, image_input, num_channels, num_block):
     # x = utils.upsample(x, self.scale, 256, None)
 
     # TODO:试试新的上采样
-    x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3])
+    x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3], activation_fn=tf.nn.tanh)
     x = tf.depth_to_space(x, self.scale)
 
     # One final convolution on the upsampling output
