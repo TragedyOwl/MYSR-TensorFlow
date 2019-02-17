@@ -3,6 +3,51 @@ import tensorflow as tf
 import utils
 import Conv2DWN
 
+def SR_CNN(self, image_input, k):
+
+    x = slim.conv2d(image_input, self.output_channels * self.scale * self.scale, [k, k], activation_fn=None)
+    x = tf.depth_to_space(x, self.scale)
+
+    output = x
+
+    return output
+
+
+def VDSR_v1(self, image_input, image_input_bicubic, num_channels, num_block):
+
+    x = slim.conv2d(image_input_bicubic, num_channels, [3, 3])
+    x = tf.nn.relu(x)
+
+    for i in range(num_block):
+        x = slim.conv2d(x, num_channels, [3, 3])
+        x = tf.nn.relu(x)
+
+    x += image_input_bicubic
+
+    output = x
+
+    return output
+
+
+def VDSR_v1_b(self, image_input, image_input_bicubic, num_channels, num_block):
+    # skip connect
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+    sk = x
+
+    x = slim.conv2d(image_input_bicubic, num_channels, [3, 3])
+    x = tf.nn.relu(x)
+
+    for i in range(num_block):
+        x = slim.conv2d(x, num_channels, [3, 3])
+        x = tf.nn.relu(x)
+
+    x += sk
+
+    output = x
+
+    return output
+
 
 def EDSR_v1(self, image_input, num_channels, num_block):
 
@@ -54,6 +99,40 @@ def EDSR_v1_b(self, image_input, num_channels, num_block):
     # One more convolution, and then we add the output of our first conv layer
     x = slim.conv2d(x, num_channels, [3, 3])
     x += conv_1
+
+    # Upsample output of the convolution
+    # x = utils.upsample(x, self.scale, 256, None)
+
+    # TODO:试试新的上采样
+    x = slim.conv2d(x, self.output_channels * self.scale * self.scale, [3, 3], activation_fn=tf.nn.tanh)
+    x = tf.depth_to_space(x, self.scale)
+
+    # One final convolution on the upsampling output
+    output = x + sk  # slim.conv2d(x,output_channels,[3,3])
+    return output
+
+# 添加了额外的底层跳过连接
+# 判断底层跳过连接是否可以吸收修复结构内的跳过连接
+def EDSR_v1_b(self, image_input, num_channels, num_block):
+    # skip connect
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+    sk = x
+
+    x = slim.conv2d(image_input, num_channels, [3, 3])
+
+    # conv_1 = x
+
+    # scaling_factor = 0.1
+    scaling_factor = 0.1
+
+    # Add the residual blocks to the model
+    for i in range(num_block):
+        x = utils.resBlock(x, num_channels, scale=scaling_factor)
+
+    # One more convolution, and then we add the output of our first conv layer
+    x = slim.conv2d(x, num_channels, [3, 3])
+    # x += conv_1
 
     # Upsample output of the convolution
     # x = utils.upsample(x, self.scale, 256, None)

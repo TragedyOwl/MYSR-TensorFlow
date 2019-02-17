@@ -17,7 +17,7 @@ import random
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Tensorflow GPU显存占满，而Util为0
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"        # 这里指定GPU0
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"        # 这里指定GPU0
 
 
 class MYSR(object):
@@ -55,6 +55,8 @@ class MYSR(object):
         image_input_bicubic -= 1
 
         # TODO:加载模型
+        # output = modellib.SR_CNN(self, image_input, 3)
+        output = modellib.SR_CNN(self, image_input, 27)
         # output = modellib.MYSR_v6(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_Dense1(self, image_input, 64, 4, 16)
         # output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
@@ -65,8 +67,8 @@ class MYSR(object):
         # output = modellib.MYSR_v5(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
-        # output = modellib.EDSR_v1(self, image_input, 128, 16)
-        output = modellib.EDSR_v1_b(self, image_input, 128, 16)
+        # output = modellib.EDSR_v1(self, image_input, 256, 16)
+        # output = modellib.EDSR_v1_b(self, image_input, 256, 16)
 
         # 结果 注意预处理的值
         # self.out = tf.clip_by_value(output+(255. / 2.), 0.0, 255.0)
