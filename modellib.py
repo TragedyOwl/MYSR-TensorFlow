@@ -14,13 +14,17 @@ def SR_CNN(self, image_input, k):
 
 
 def VDSR_v1(self, image_input, image_input_bicubic, num_channels, num_block):
-
+    # conv1
     x = slim.conv2d(image_input_bicubic, num_channels, [3, 3])
     x = tf.nn.relu(x)
 
     for i in range(num_block):
         x = slim.conv2d(x, num_channels, [3, 3])
         x = tf.nn.relu(x)
+
+    # conv-output
+    x = slim.conv2d(x, self.output_channels, [3, 3])
+    x = tf.nn.relu(x)
 
     x += image_input_bicubic
 
@@ -35,12 +39,17 @@ def VDSR_v1_b(self, image_input, image_input_bicubic, num_channels, num_block):
     x = tf.depth_to_space(x, self.scale)
     sk = x
 
+    # conv1
     x = slim.conv2d(image_input_bicubic, num_channels, [3, 3])
     x = tf.nn.relu(x)
 
     for i in range(num_block):
         x = slim.conv2d(x, num_channels, [3, 3])
         x = tf.nn.relu(x)
+
+    # conv-output
+    x = slim.conv2d(x, self.output_channels, [3, 3])
+    x = tf.nn.relu(x)
 
     x += sk
 

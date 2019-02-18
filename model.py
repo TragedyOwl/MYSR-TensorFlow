@@ -17,7 +17,7 @@ import random
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # Tensorflow GPU显存占满，而Util为0
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"        # 这里指定GPU0
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"        # 这里指定GPU0
 
 
 class MYSR(object):
@@ -56,7 +56,9 @@ class MYSR(object):
 
         # TODO:加载模型
         # output = modellib.SR_CNN(self, image_input, 3)
-        output = modellib.SR_CNN(self, image_input, 27)
+        # output = modellib.SR_CNN(self, image_input, 27)
+        # output = modellib.VDSR_v1(self, image_input, image_input_bicubic, 64, 18)
+        output = modellib.VDSR_v1_b(self, image_input, image_input_bicubic, 64, 18)
         # output = modellib.MYSR_v6(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_Dense1(self, image_input, 64, 4, 16)
         # output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
