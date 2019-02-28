@@ -562,7 +562,7 @@ def MYSR_v6(self, image_input, num_channels, num_block):
     return x
 
 
-# 移除sk及sk中的5x5放大
+# 移除sk及sk中的NxN放大
 def MYSR_v5_Dense1(self, image_input, num_channels, num_channels_scale, num_block):
     # 定制residual_block
     def _residual_block(x, num_channels):
@@ -603,7 +603,7 @@ def MYSR_v5_Dense1(self, image_input, num_channels, num_channels_scale, num_bloc
     return x
 
 
-# 保留sk及sk中的5x5放大
+# 保留sk及sk中的NxN放大
 def MYSR_v5_Dense2(self, image_input, num_channels, num_channels_scale, num_block):
     # 定制residual_block
     def _residual_block(x, num_channels):
@@ -627,7 +627,7 @@ def MYSR_v5_Dense2(self, image_input, num_channels, num_channels_scale, num_bloc
         return tf.concat([skip, x], 3)
 
     # skip connect
-    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 7, padding='same')
     x = tf.depth_to_space(x, self.scale)
     sk = x
 
