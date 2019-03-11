@@ -6,6 +6,7 @@ import os
 import scipy.misc
 import datetime
 import numpy as np
+import math
 
 
 """
@@ -212,3 +213,30 @@ def monitorGradientExplosion(monitor_dir, image_i, image_o, image_t):
         scipy.misc.imsave(monitor_dir + 'image_i/' + str(idx) + '.png', image_i[idx])
         scipy.misc.imsave(monitor_dir + 'image_o/' + str(idx) + '.png', image_o[idx])
         scipy.misc.imsave(monitor_dir + 'image_t/' + str(idx) + '.png', image_t[idx])
+
+
+"""
+计算PSNR-单通道
+"""
+def PSNR_t(sr, hr, shave_border=0):
+    height, width = sr.shape[:2]
+    sr = sr[shave_border:height - shave_border, shave_border:width - shave_border]
+    hr = hr[shave_border:height - shave_border, shave_border:width - shave_border]
+    imdff = sr - hr
+    rmse = math.sqrt(np.mean(imdff ** 2))
+    if rmse == 0:
+        return 100
+    return 20 * math.log10(255.0 / rmse)
+
+
+def PSNR(sr, hr, shave_border=0):
+    height, width = sr.shape[:2]
+    sr = sr[shave_border:height - shave_border, shave_border:width - shave_border]
+    hr = hr[shave_border:height - shave_border, shave_border:width - shave_border]
+    mse = np.mean((sr * 1. - hr * 1.) ** 2)
+
+    if mse < 1.0e-10:
+        return 100
+    PIXEL_MAX = 255.0
+    return 10 * math.log10(PIXEL_MAX ** 2 / mse)
+

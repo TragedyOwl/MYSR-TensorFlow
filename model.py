@@ -59,9 +59,11 @@ class MYSR(object):
         # output = modellib.SR_CNN(self, image_input, 27)
         # output = modellib.VDSR_v1(self, image_input, image_input_bicubic, 64, 18)
         # output = modellib.VDSR_v1_b(self, image_input, image_input_bicubic, 64, 18)
+        output = modellib.SRDenseNetX2(self, image_input, 16, 8)
+        # output = modellib.SRDenseNetX4(self, image_input, 16, 8)
         # output = modellib.MYSR_v6(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_Dense1(self, image_input, 64, 4, 16)
-        output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
+        # output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
         # output = modellib.MYSR_v5_3(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0_b(self, image_input, image_input_bicubic, 64, 16)
@@ -69,8 +71,10 @@ class MYSR(object):
         # output = modellib.MYSR_v5(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_b(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v4(self, image_input, image_input_bicubic)
-        # output = modellib.EDSR_v1(self, image_input, 256, 16)
-        # output = modellib.EDSR_v1_b(self, image_input, 256, 16)
+        # output = modellib.EDSR_v1(self, image_input, 128, 16)
+        # output = modellib.EDSR_v1_b(self, image_input, 128, 16)
+        # output = modellib.WDSR_v1(self, image_input, 64, 16)
+
 
         # 结果 注意预处理的值
         # self.out = tf.clip_by_value(output+(255. / 2.), 0.0, 255.0)
@@ -162,17 +166,17 @@ class MYSR(object):
         print("Begin loading data...")
         # 训练集
         train_hr_img_list = sorted(
-            tl.files.load_file_list(path=config.TRAIN.hr_img_path, regx='.*.png', printable=False))
+            tl.files.load_file_list(path=config.TRAIN.hr_img_path, regx='.*.*', printable=False))
         train_hr_imgs = tl.vis.read_images(train_hr_img_list, path=config.TRAIN.hr_img_path, n_threads=32)
 
         # 验证集，不裁剪，整体下采样
         valid_hr_img_list = sorted(
-            tl.files.load_file_list(path=config.VALID.hr_img_path, regx='.*.png', printable=False))
+            tl.files.load_file_list(path=config.VALID.hr_img_path, regx='.*.*', printable=False))
         valid_hr_imgs = tl.vis.read_images(valid_hr_img_list, path=config.VALID.hr_img_path, n_threads=32)
 
         # 测试集，不裁剪，整体下采样
         test_hr_img_list = sorted(
-            tl.files.load_file_list(path=config.TEST.hr_img_path, regx='.*.png', printable=False))
+            tl.files.load_file_list(path=config.TEST.hr_img_path, regx='.*.*', printable=False))
         test_hr_imgs = tl.vis.read_images(test_hr_img_list, path=config.TEST.hr_img_path, n_threads=32)
         print("Done loading!")
 
@@ -284,7 +288,7 @@ class MYSR(object):
                     self.saver.save(self.sess, self.save_model_dir, global_step=epoch)
 
                 # TODO: 每n个epoch运行一下验证集
-                if epoch % 10 == 0:
+                if epoch % 10 == 1:
                     # run
                     PSNR_sum = 0.0
                     for i in range(len(b_valid_lr_imgs)):
@@ -301,7 +305,7 @@ class MYSR(object):
                     utils.log_message(config.VALID.log_file, "a", m_temp)
 
                 # TODO: 每n个epoch运行一下测试集
-                if epoch % 100 == 0:
+                if epoch % 100 == 1:
                     # run
                     PSNR_sum = 0.0
                     for i in range(len(b_test_lr_imgs)):

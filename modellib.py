@@ -14,6 +14,9 @@ def SR_CNN(self, image_input, k):
 
 
 def VDSR_v1(self, image_input, image_input_bicubic, num_channels, num_block):
+    # skip connect
+    # sk = image_input_bicubic
+
     # conv1
     x = slim.conv2d(image_input_bicubic, num_channels, [3, 3])
     x = tf.nn.relu(x)
@@ -26,7 +29,7 @@ def VDSR_v1(self, image_input, image_input_bicubic, num_channels, num_block):
     x = slim.conv2d(x, self.output_channels, [3, 3])
     x = tf.nn.relu(x)
 
-    x += image_input_bicubic
+    # x += sk
 
     output = x
 
@@ -35,7 +38,7 @@ def VDSR_v1(self, image_input, image_input_bicubic, num_channels, num_block):
 
 def VDSR_v1_b(self, image_input, image_input_bicubic, num_channels, num_block):
     # skip connect
-    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 7, padding='same')
     x = tf.depth_to_space(x, self.scale)
     sk = x
 
@@ -627,7 +630,7 @@ def MYSR_v5_Dense2(self, image_input, num_channels, num_channels_scale, num_bloc
         return tf.concat([skip, x], 3)
 
     # skip connect
-    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 7, padding='same')
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
     x = tf.depth_to_space(x, self.scale)
     sk = x
 
@@ -694,4 +697,124 @@ def MYSR_v5_Dense2_test(self, image_input, num_channels, num_channels_scale, num
     output = sk + x
 
     return output, x, sk
+
+
+def WDSR_v1(self, image_input, num_channels, num_block):
+    # 定制residual_block
+    def _residual_block(x, num_channels):
+        skip = x
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels * 4,
+          3,
+          padding='same',
+          name='conv0',
+        )
+        x = tf.nn.relu(x)
+        x = Conv2DWN.conv2d_weight_norm(
+          x,
+          num_channels,
+          3,
+          padding='same',
+          name='conv1',
+        )
+        return x + skip
+
+    # skip connect
+    x = Conv2DWN.conv2d_weight_norm(image_input, self.output_channels * self.scale * self.scale, 5, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+    sk = x
+
+    # input
+    x = Conv2DWN.conv2d_weight_norm(image_input, num_channels, 3, padding='same')   #入口
+
+    # layer
+    for i in range(num_block):
+        with tf.variable_scope('layer{}'.format(i)):
+            x = _residual_block(x, num_channels)
+
+    # SR
+    x = Conv2DWN.conv2d_weight_norm(x, self.output_channels * self.scale * self.scale, 3, padding='same')
+    x = tf.depth_to_space(x, self.scale)
+
+    # output
+    x += sk
+
+    return x
+
+
+# SRDenseNet X2
+def SRDenseNetX2(self, image_input, num_channels, num_block):
+
+    def _dense_block(x, num_channels, n_conv):
+        x = slim.conv2d(x, num_channels, [3, 3])
+        skip = tf.nn.relu(x)
+
+        for i in range(1, n_conv):
+            x = slim.conv2d(skip, num_channels, [3, 3])
+            x = tf.nn.relu(x)
+            skip = tf.concat([skip, x], 3)
+
+        return skip
+
+    # 入口
+    x = slim.conv2d(image_input, num_channels*8, [3, 3])
+
+    skip = x
+    for i in range(0, num_block):
+        with tf.variable_scope('DenseBlock{}'.format(i)):
+            x = _dense_block(skip, num_channels, 8)
+            skip = tf.concat([skip, x], 3)
+
+    x = skip
+
+    # 瓶颈
+    x = slim.conv2d(x, 256, [1, 1])
+
+    # upsample
+    x = slim.conv2d_transpose(x, 256, [2, 2], 2)
+
+    # reconstruction
+    x = slim.conv2d(x, self.output_channels, [3, 3])
+
+    output = x
+
+    return output
+
+
+# SRDenseNet X4
+def SRDenseNetX4(self, image_input, num_channels, num_block):
+
+    def _dense_block(x, num_channels, n_conv):
+        skip = slim.conv2d(x, num_channels, [3, 3])
+
+        for i in range(1, n_conv):
+            x = slim.conv2d(skip, num_channels, [3, 3])
+            skip = tf.concat([skip, x], 3)
+
+        return skip
+
+    # 入口
+    x = slim.conv2d(image_input, num_channels, [3, 3])
+
+    # DenseBlock
+    skip = _dense_block(x, num_channels, 8)
+
+    for i in range(1, num_block):
+        x = _dense_block(skip, num_channels, 8)
+        skip = tf.concat([skip, x], 3)
+
+    # 瓶颈
+    x = slim.conv2d(skip, 256, [1, 1])
+
+    # upsample
+    x = slim.conv2d_transpose(x, 256, [2, 2], 2)
+    x = slim.conv2d_transpose(x, 256, [2, 2], 2)
+
+    # reconstruction
+    x = slim.conv2d(x, self.output_channels, [3, 3])
+
+    output = x
+
+    return output
 
