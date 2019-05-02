@@ -59,11 +59,11 @@ class MYSR(object):
         # output = modellib.SR_CNN(self, image_input, 27)
         # output = modellib.VDSR_v1(self, image_input, image_input_bicubic, 64, 18)
         # output = modellib.VDSR_v1_b(self, image_input, image_input_bicubic, 64, 18)
-        output = modellib.SRDenseNetX2(self, image_input, 16, 8)
+        # output = modellib.SRDenseNetX2(self, image_input, 16, 8)
         # output = modellib.SRDenseNetX4(self, image_input, 16, 8)
         # output = modellib.MYSR_v6(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_Dense1(self, image_input, 64, 4, 16)
-        # output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
+        output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
         # output = modellib.MYSR_v5_3(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0_b(self, image_input, image_input_bicubic, 64, 16)
@@ -86,10 +86,14 @@ class MYSR(object):
         mse = tf.reduce_mean(tf.squared_difference((image_target+1)*(255. / 2.), tf.clip_by_value((output+1)*(255. / 2.), 0.0, 255.0)))
         PSNR = tf.constant(255**2, dtype=tf.float32) / mse
         self.PSNR = PSNR = tf.constant(10, dtype=tf.float32) * utils.log10(PSNR)
+        SSIM = tf.image.ssim((image_target+1)*(255. / 2.), self.out, max_val=255.)
+        self.SSIM = tf.reduce_mean(SSIM)
 
         # Scalar to keep track for loss
         tf.summary.scalar("loss", self.loss)
         tf.summary.scalar("PSNR", PSNR)
+        tf.summary.scalar("SSIM", self.SSIM)
+
         # Image summaries for input, target, and output
         tf.summary.image("input_image", tf.cast(self.input, tf.uint8))
         tf.summary.image("target_image", tf.cast(self.target, tf.uint8))
@@ -291,34 +295,44 @@ class MYSR(object):
                 if epoch % 10 == 1:
                     # run
                     PSNR_sum = 0.0
+                    SSIM_sum = 0.0
                     for i in range(len(b_valid_lr_imgs)):
                         test_feed = {
                             self.input: [b_valid_lr_imgs[i]],
                             self.input_bicubic: [b_valid_bicubic_imgs[i]],
                             self.target: [b_valid_hr_imgs[i]]
                         }
-                        PSNR = sess.run(self.PSNR, test_feed)
+                        PSNR, SSIM = sess.run([self.PSNR, self.SSIM], test_feed)
                         PSNR_sum += PSNR
+                        SSIM_sum += SSIM
                     PSNR_avg = PSNR_sum/len(b_valid_lr_imgs)
+                    SSIM_avg = SSIM_sum / len(b_valid_lr_imgs)
 
-                    m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) + ']: ' + str(PSNR_avg)
+                    m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) +\
+                             ']: PSNR=' + str(round(PSNR_avg, 6)) +\
+                             ',\t SSIM=' + str(round(SSIM_avg, 6))
                     utils.log_message(config.VALID.log_file, "a", m_temp)
 
                 # TODO: 每n个epoch运行一下测试集
                 if epoch % 100 == 1:
                     # run
                     PSNR_sum = 0.0
+                    SSIM_sum = 0.0
                     for i in range(len(b_test_lr_imgs)):
                         test_feed = {
                             self.input: [b_test_lr_imgs[i]],
                             self.input_bicubic: [b_test_bicubic_imgs[i]],
                             self.target: [b_test_hr_imgs[i]]
                         }
-                        PSNR = sess.run(self.PSNR, test_feed)
+                        PSNR, SSIM = sess.run([self.PSNR, self.SSIM], test_feed)
                         PSNR_sum += PSNR
+                        SSIM_sum += SSIM
                     PSNR_avg = PSNR_sum / len(b_test_lr_imgs)
+                    SSIM_avg = SSIM_sum / len(b_test_lr_imgs)
 
-                    m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) + ']: ' + str(PSNR_avg)
+                    m_temp = 'Epoch[' + str(epoch) + '/' + str(self.epoch) + \
+                             ']: PSNR=' + str(round(PSNR_avg, 6)) + \
+                             ',\t SSIM=' + str(round(SSIM_avg, 6))
                     utils.log_message(config.TEST.log_file, "a", m_temp)
 
 
