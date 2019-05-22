@@ -3,6 +3,16 @@ import tensorflow as tf
 import utils
 import Conv2DWN
 
+# bicubic测试，计算PSNR和SSIM
+def BICUBIC(self, image_input, image_input_bicubic):
+    # conv1
+    x = slim.conv2d(image_input_bicubic, 16, [3, 3])
+    x = tf.nn.relu(x)
+
+    x = image_input_bicubic
+
+    return x
+
 def SR_CNN(self, image_input, k):
 
     x = slim.conv2d(image_input, self.output_channels * self.scale * self.scale, [k, k], activation_fn=None)

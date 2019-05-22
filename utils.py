@@ -7,6 +7,7 @@ import scipy.misc
 import datetime
 import numpy as np
 import math
+import cv2
 
 
 """
@@ -16,6 +17,14 @@ def crop_sub_imgs_fn(img, is_random=True):
     imgsize = config.TRAIN.imgsize
     scale = config.TRAIN.scale
     x = scale * imgsize
+    # output_channels = config.TRAIN.output_channels
+
+    # TODO: 添加YCbCr单通道训练验证
+    # if output_channels == 1:
+    #     # RGB转YCbCr
+    #     img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+    #     img = img[:, :, 0:1]
+
 
     # TODO: 添加边界判断 倍数整除验证
     # 现由于固定输入图像wh大小，所以这些预处理均失效，仅用于报错提示
@@ -65,6 +74,14 @@ def lr2bicubic_fn(img):
 """
 def return_fn(img):
     scale = config.TRAIN.scale
+    output_channels = config.TRAIN.output_channels
+
+    # TODO: 添加YCbCr单通道训练验证
+    if output_channels == 1:
+        # RGB转YCbCr
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        img = img[:, :, 0:1]
+
     x = img.shape[0] // scale * scale
     y = img.shape[1] // scale * scale
     result = imresize(img, size=[x, y], interp='bicubic', mode=None)

@@ -55,6 +55,7 @@ class MYSR(object):
         image_input_bicubic -= 1
 
         # TODO:加载模型
+        output = modellib.BICUBIC(self, image_input, image_input_bicubic)
         # output = modellib.SR_CNN(self, image_input, 3)
         # output = modellib.SR_CNN(self, image_input, 27)
         # output = modellib.VDSR_v1(self, image_input, image_input_bicubic, 64, 18)
@@ -63,7 +64,7 @@ class MYSR(object):
         # output = modellib.SRDenseNetX4(self, image_input, 16, 8)
         # output = modellib.MYSR_v6(self, image_input, 64, 16)
         # output = modellib.MYSR_v5_Dense1(self, image_input, 64, 4, 16)
-        output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
+        # output = modellib.MYSR_v5_Dense2(self, image_input, 64, 4, 16)
         # output = modellib.MYSR_v5_3(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0(self, image_input, image_input_bicubic, 64, 16)
         # output = modellib.MYSR_v5_0_b(self, image_input, image_input_bicubic, 64, 16)
@@ -86,6 +87,7 @@ class MYSR(object):
         mse = tf.reduce_mean(tf.squared_difference((image_target+1)*(255. / 2.), tf.clip_by_value((output+1)*(255. / 2.), 0.0, 255.0)))
         PSNR = tf.constant(255**2, dtype=tf.float32) / mse
         self.PSNR = PSNR = tf.constant(10, dtype=tf.float32) * utils.log10(PSNR)
+        # self.PSNR = tf.image.psnr((image_target+1)*(255. / 2.), self.out, max_val=255.)
         SSIM = tf.image.ssim((image_target+1)*(255. / 2.), self.out, max_val=255.)
         self.SSIM = tf.reduce_mean(SSIM)
 
@@ -215,6 +217,9 @@ class MYSR(object):
             # 验证集专用TB writer
             # valid_writer = tf.summary.FileWriter(config.TRAIN.save_tensorboard_valid_dir, sess.graph)
 
+            # 训练集数据预处理
+            train_hr_imgs = tl.prepro.threading_data(train_hr_imgs, fn=utils.return_fn)
+
             # 验证集数据预处理
             b_valid_hr_imgs = tl.prepro.threading_data(valid_hr_imgs, fn=utils.return_fn)
             b_valid_lr_imgs = tl.prepro.threading_data(b_valid_hr_imgs, fn=utils.downsample_fn2)
@@ -292,7 +297,7 @@ class MYSR(object):
                     self.saver.save(self.sess, self.save_model_dir, global_step=epoch)
 
                 # TODO: 每n个epoch运行一下验证集
-                if epoch % 10 == 1:
+                if epoch % 2 == 0:
                     # run
                     PSNR_sum = 0.0
                     SSIM_sum = 0.0
@@ -314,7 +319,7 @@ class MYSR(object):
                     utils.log_message(config.VALID.log_file, "a", m_temp)
 
                 # TODO: 每n个epoch运行一下测试集
-                if epoch % 100 == 1:
+                if epoch % 2 == 0:
                     # run
                     PSNR_sum = 0.0
                     SSIM_sum = 0.0
